@@ -1,0 +1,94 @@
+repeat wait() until game.Loaded
+local plrs = game:GetService('Players')
+local plr = plrs.LocalPlayer
+loopKill = {}
+
+local function findplr(Target)
+    if game:GetService'Players':FindFirstChild(Target) then
+        return game:GetService'Players':FindFirstChild(Target)
+    else
+        if Target ~= nil and Target ~= "" and Target ~= " " then
+            local name = Target
+            local found = false
+            for _,v in pairs(game:GetService'Players':GetPlayers()) do
+                if not found and (v.Name:lower():sub(1, #name) == name:lower() or v.DisplayName:lower():sub(1, #name) == name:lower()) then
+                    name = v
+                    found = true
+                end
+            end
+            if name ~= nil and name ~= Target then
+                return name
+            end
+        end
+    end
+end
+
+plr.Chatted:Connect(function(msg)
+    msg = msg:lower():split(' ')
+    if msg[1] == '/e' then
+        for i, v in next, msg do
+            msg[i] = msg[i + 1]
+        end
+    end
+    if msg[1] == ':loopkill' and findplr(msg[2]) and not table.find(loopKill, findplr(msg[2]).Name) then
+        table.insert(loopKill, findplr(msg[2]).Name)
+    elseif msg[1] == ':clear' then
+        table.clear(loopKill)
+    end
+end)
+
+local function handleArmAngleChange(targetModel)
+    if targetModel and targetModel:FindFirstChild('ArmAngleChange') then
+        targetModel.ArmAngleChange:FireServer(CFrame.new(math.huge, math.huge, math.huge))
+    end
+end
+
+local function handlePicking(target)
+    local character = plr.Character
+    if not character then return end
+
+    if character:FindFirstChild('Picked') and not character.Picked.Value then
+        if character:FindFirstChild('Picking') then
+            character.Picking:FireServer(target, Vector3.new(math.huge, -math.huge, math.huge))
+        end
+    elseif character:FindFirstChild('PuttingDown') then
+        character.PuttingDown:FireServer()
+    end
+end
+
+local function handleInteraction(target)
+    pcall(function()
+        if not target then return end
+
+        local targetModel = target:FindFirstAncestorOfClass('Model')
+        if targetModel then
+            handleArmAngleChange(targetModel)
+        end
+
+        handlePicking(target)
+    end)
+end
+
+while true do
+    wait(0.1)
+    for _, v in next, plrs:GetPlayers() do
+        if table.find(loopKill, v.Name) then
+            pcall(function()
+                local accs = v.Character:FindFirstChildOfClass('Accessory')
+                if accs then
+                    if accs:FindFirstChild('Handle') then
+                        handleInteraction(accs.Handle)  -- Using the interaction function
+                    elseif accs:IsA('BasePart') then
+                        handleInteraction(accs)  -- Using the interaction function
+                    end
+                else
+                    handleInteraction(v.Character.HumanoidRootPart)  -- Using the interaction function
+                    wait(0.1)
+                    if plr.Character:FindFirstChild('PuttingDown') then
+                        plr.Character.PuttingDown:FireServer()
+                    end
+                end
+            end)
+        end
+    end
+end
